@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HTML → PDF</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen flex items-center justify-center p-6">
+
+  <div class="w-full max-w-4xl flex flex-col gap-6">
+
+    <!-- Header -->
+    <div class="text-center">
+      <h1 class="text-3xl font-bold tracking-tight text-white">HTML → PDF</h1>
+      <p class="text-gray-400 mt-1 text-sm">Cole seu código HTML abaixo e gere o PDF instantaneamente.</p>
+    </div>
+
+    <!-- Card principal -->
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 flex flex-col gap-4 shadow-xl">
+
+      <label class="text-sm font-medium text-gray-300" for="htmlInput">
+        Código HTML
+      </label>
+
+      <textarea
+        id="htmlInput"
+        spellcheck="false"
+        placeholder="<html>&#10;  <body>&#10;    <h1>Olá, mundo!</h1>&#10;  </body>&#10;</html>"
+        class="w-full h-96 bg-gray-950 border border-gray-700 rounded-xl p-4 font-mono text-sm text-gray-200 placeholder-gray-600 resize-y focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+      ></textarea>
+
+      <!-- Mensagem de erro -->
+      <div id="errorBox" class="hidden bg-red-900/40 border border-red-700 text-red-300 text-sm rounded-lg px-4 py-3"></div>
+
+      <button
+        id="generateBtn"
+        onclick="generatePdf()"
+        class="self-end flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 disabled:cursor-not-allowed text-white font-semibold px-6 py-3 rounded-xl transition-colors duration-200"
+      >
+        <svg id="btnIcon" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="12" y1="18" x2="12" y2="12"/>
+          <line x1="9" y1="15" x2="15" y2="15"/>
+        </svg>
+        <span id="btnLabel">Gerar PDF</span>
+      </button>
+
+    </div>
+
+    <p class="text-center text-xs text-gray-600">Processado localmente · Nenhum dado é enviado para servidores externos</p>
+
+  </div>
+
+  <script>
+    async function generatePdf() {
+      const btn = document.getElementById('generateBtn');
+      const btnLabel = document.getElementById('btnLabel');
+      const btnIcon = document.getElementById('btnIcon');
+      const errorBox = document.getElementById('errorBox');
+      const html = document.getElementById('htmlInput').value.trim();
+
+      errorBox.classList.add('hidden');
+      errorBox.textContent = '';
+
+      if (!html) {
+        errorBox.textContent = 'O campo HTML não pode estar vazio.';
+        errorBox.classList.remove('hidden');
+        return;
+      }
+
+      // Estado de loading
+      btn.disabled = true;
+      btnLabel.textContent = 'Gerando...';
+      btnIcon.outerHTML = `
+        <svg id="btnIcon" class="w-5 h-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+        </svg>`;
+
+      try {
+        const response = await fetch('/generate-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ html }),
+        });
+
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          throw new Error(body.error || `Erro ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'documento.pdf';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+
+      } catch (err) {
+        errorBox.textContent = err.message || 'Erro inesperado ao gerar o PDF.';
+        errorBox.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btnLabel.textContent = 'Gerar PDF';
+        document.getElementById('btnIcon').outerHTML = `
+          <svg id="btnIcon" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="12" y1="18" x2="12" y2="12"/>
+            <line x1="9" y1="15" x2="15" y2="15"/>
+          </svg>`;
+      }
+    }
+  </script>
+
+</body>
+</html>
