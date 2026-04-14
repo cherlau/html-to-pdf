@@ -8,6 +8,11 @@
 </head>
 <body class="bg-gray-950 text-gray-100 min-h-screen flex items-center justify-center p-6">
 
+  <!-- Banner de status do servidor -->
+  <div id="statusBanner" class="fixed top-0 left-0 right-0 z-50 hidden">
+    <div id="statusContent" class="flex items-center justify-center gap-3 py-3 px-4 text-sm font-medium"></div>
+  </div>
+
   <div class="w-full max-w-4xl flex flex-col gap-6">
 
     <!-- Header -->
@@ -54,6 +59,75 @@
   </div>
 
   <script>
+    // --- Health check ---
+    const banner  = document.getElementById('statusBanner');
+    const content = document.getElementById('statusContent');
+    let serverReady = false;
+
+    function showBanner(type, html) {
+      const styles = {
+        checking: 'bg-yellow-900/80 text-yellow-300 border-b border-yellow-700',
+        ok:       'bg-green-900/80 text-green-300 border-b border-green-700',
+        error:    'bg-red-900/80   text-red-300   border-b border-red-700',
+      };
+      banner.className  = 'fixed top-0 left-0 right-0 z-50';
+      content.className = `flex items-center justify-center gap-3 py-3 px-4 text-sm font-medium ${styles[type]}`;
+      content.innerHTML = html;
+      banner.classList.remove('hidden');
+    }
+
+    function hideBanner() {
+      banner.classList.add('hidden');
+    }
+
+    async function checkHealth() {
+      showBanner('checking', `
+        <svg class="w-4 h-4 animate-spin shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+        </svg>
+        <span>Servidor acordando, aguarde um momento...</span>
+      `);
+
+      let attempts = 0;
+      const maxAttempts = 40; // ~2 min tentando a cada 3s
+
+      async function ping() {
+        attempts++;
+        try {
+          const res = await fetch('/health', { cache: 'no-store' });
+          if (res.ok) {
+            serverReady = true;
+            showBanner('ok', `
+              <svg class="w-4 h-4 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              <span>Servidor online e pronto para uso.</span>
+            `);
+            setTimeout(hideBanner, 3000);
+            return;
+          }
+        } catch (_) {}
+
+        if (attempts >= maxAttempts) {
+          showBanner('error', `
+            <svg class="w-4 h-4 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span>Servidor não respondeu. <button onclick="checkHealth()" class="underline ml-1 font-bold">Tentar novamente</button></span>
+          `);
+          return;
+        }
+
+        setTimeout(ping, 3000);
+      }
+
+      ping();
+    }
+
+    checkHealth();
+    // --- Fim health check ---
+
     async function generatePdf() {
       const btn = document.getElementById('generateBtn');
       const btnLabel = document.getElementById('btnLabel');
