@@ -61,7 +61,7 @@ app.post('/generate-pdf', async (req, res) => {
     res.end(pdfBuffer);
   } catch (err) {
     console.error('Erro ao gerar PDF:', err);
-    res.status(500).json({ error: 'Falha ao gerar o PDF. Verifique o HTML enviado.' });
+    res.status(500).json({ error: 'Falha ao gerar o PDF.', detail: err.message });
   } finally {
     if (browser) {
       await browser.close();
